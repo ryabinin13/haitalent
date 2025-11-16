@@ -1,6 +1,6 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload, Session
-from app.models.question import Question
+from app.models import Question, Answer
 
 
 class QuestionRepository:
@@ -23,4 +23,19 @@ class QuestionRepository:
 
     async def getall(self) -> list[Question]:
         async with self.async_session as db:
-            return db.query(Question).all()
+            query = select(Question)
+            question = await db.execute(query)
+            return question.scalars().all()
+        
+    async def delete(self, id: int) -> None:
+        async with self.async_session as db:
+            # Находим вопрос
+            query = select(Question).where(Question.id == id)
+            result = await db.execute(query)
+            question = result.scalar_one_or_none()
+            
+            if question:
+                # Удаляем через ORM - сработает каскадное удаление ответов
+                await db.delete(question)
+                await db.commit()
+            return None
